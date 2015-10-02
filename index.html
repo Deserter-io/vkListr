@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<html lang="Ru">
+<head>
+    <meta charset="utf-8">
+
+    <title>VK group members</title>
+    <meta name="description" content="">
+    <meta name="keywords" content="">
+    <meta name="robots" content="">
+    
+    <link rel="stylesheet" href="http://yastatic.net/bootstrap/3.3.4/css/bootstrap.min.css">
+    <style>
+	    #i-groupname {width: 250px}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<div class="form-inline">
+			<input type="text" id="i-groupname" class="form-control" placeholder="ссылка, id или короткое имя группы ВК">
+			<button type="button" id="btn-send" class="btn btn-default">Отправить</button>
+		</div>
+		<div id="b-out"></div>
+	</div>
+	
+	<script src="http://yastatic.net/jquery/2.1.4/jquery.min.js"></script>
+	<script src="//vk.com/js/api/openapi.js"></script>
+	<script src="main.js"></script>
+	<script>
+		App.init({appId: });
+	</script>
+
+</body>
+</html>
