@@ -1,3 +1,5 @@
+"use strict";
+
 var Worker = {
 	init: function() {
 		self.onmessage = this.onMessage.bind(this);
@@ -5,6 +7,8 @@ var Worker = {
 	}
 	
 	,busy: false
+	
+	,ids: []
 
 	,onMessage: function(e) {
 		if( !e.data  ||  !e.data.oid  ||  !e.data.token  || !e.data.code) {
@@ -25,7 +29,7 @@ var Worker = {
 		this.token = e.data.token;
 		this.mass = e.data.mass ? e.data.mass : 0;
 		this.code = encodeURIComponent( e.data.code.replace(/\s+/g,' '));
-		this.v =  e.data.v ? e.data.v : 5.37
+		this.v =  e.data.v
 
 		this.offset = 0;
 		
@@ -33,10 +37,53 @@ var Worker = {
 	}
 	
 	,runLoop: function(r) {
+		var loop, from, lastId, lengthBefore;
+		postMessage({status: "Loop called"});
+		
 		
 		if(r) {
-			console.log('Some response from VK', r);
-			return;
+			console.log("runLoop got", r);
+
+			if( r.execute_errors) {
+				console.log("Execute errors", r.execute_errors);
+				return;
+			}
+			
+			if( r.response) {
+				if( r.response.ids && r.response.ids.length>0) {
+					lengthBefore = this.ids.length;
+					for( loop=0; loop < r.response.ids.length; loop++) {	// max 25
+						if( this.ids.length > 0) {
+							lastId = this.ids[ this.ids.length - 1];
+							
+							from = r.response.ids[ loop].indexOf( lastId);
+							if( from == -1) {
+								console.log('Last id was not found. Just appending. Might be an hole.');
+								this.ids = this.ids.concat( r.response.ids[ loop]);
+							} else {
+								this.ids = this.ids.concat( r.response.ids[ loop].slice( from + 1));
+							}
+						} else {
+							this.ids = r.response.ids[ loop].slice();
+						}
+					}
+					
+					//this.offset += this.ids.length - lengthBefore;
+					this.offset = r.response.offset + r.response.ids[ r.response.ids.length - 1].length;
+					console.log("Offset: ", this.offset);
+				}
+				
+				if( r.response.mass) this.mass = r.response.mass;
+				
+				if( this.offset >= this.mass) {		// done
+					console.log('Worker done.');
+					postMessage({ids: this.ids});
+					return;
+				}
+			} else {
+				console.log("Ids not found", r);
+				return;
+			}
 		}
 		
 		// jsonp call to VK API
@@ -44,6 +91,7 @@ var Worker = {
 			+'?access_token='	+ this.token 
 			+'&oid='			+ this.oid
 			+'&offset='			+ this.offset
+			+'&overlap='		+ 2 // this.offset > 0 ? Math.floor( Math.log( this.offset)) : 0
 			+'&mass='			+ this.mass
 			+'&code='			+ this.code
 			+'&v='				+ this.v

@@ -18,6 +18,7 @@ var App = (function(w,d,$,VK){
 			,v:		5.37
 		}
 		,props:	{}
+		,ids: []
 		,init:	function(opts) {
 			if( !w.Worker) {
 				console.log("No Worker API");
@@ -103,6 +104,12 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,onMessage: function(e) {
+			if( e.data  &&  e.data.ids) {
+				this.ids = e.data.ids;
+				console.log("Received " + this.ids.length + " ids");
+				return;
+			}
+			
 			this.$out.html( e.data);
 			console.log('Message received from worker', e);
 		}

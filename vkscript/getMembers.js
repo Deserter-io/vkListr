@@ -1,5 +1,5 @@
-var step=4, overlap=2, R, offset = parseInt(Args.offset), loop=0,
-out = { oid: parseInt(Args.oid), ids:[], mass: parseInt(Args.mass) };
+var step=5, R, offset = parseInt(Args.offset), loop=0,
+out = { oid: parseInt(Args.oid), ids:[], mass: parseInt(Args.mass), overlap: parseInt(Args.overlap) };
 
 while( offset <= out.mass  &&  loop < 25) {
 	R = API.groups.getMembers({ "group_id": out.oid, "sort": "id_asc", "offset": out.offset, "count": step});
@@ -10,7 +10,7 @@ while( offset <= out.mass  &&  loop < 25) {
 		out.offset = offset;
 		out.loop = loop;
 
-		offset = out.offset + step - overlap;
+		offset = out.offset + step - out.overlap;
 		loop = loop + 1;
 	} else {
 		out.error = "Empty items";
