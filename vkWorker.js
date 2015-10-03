@@ -1,6 +1,14 @@
-onmessage = function(e) {
-  console.log('Message received from main script');
-  var workerResult = 'Result: ' + (e.data[0] * e.data[1]);
-  console.log('Posting message back to main script');
-  postMessage(workerResult);
+function gotVkResponse(r) {
+	console.log('Got vk response, posting message back to main script', r);
+	postMessage(r);
 }
+
+onmessage = function(e) {
+  console.log('Message received from main script', e.data);
+
+
+  var url = "https://api.vk.com/method/users.get?access_token=" + e.data.token + '&callback=gotVkResponse';
+  importScripts( url);
+}
+
+

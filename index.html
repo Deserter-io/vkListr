@@ -16,19 +16,24 @@
 </head>
 
 <body>
-	<div class="container">
+	<div class="container vk-user hidden">
 		<div class="form-inline">
 			<input type="text" id="i-groupname" class="form-control" placeholder="ссылка, id или короткое имя группы ВК">
-			<button type="button" id="btn-send" class="btn btn-default">Отправить</button>
+			<button type="button" id="btn-send" class="btn btn-success">Отправить</button>
+			<button type="button" id="btn-logout" class="btn btn-default">Выйти</button>
 		</div>
 		<div id="b-out"></div>
+	</div>
+
+	<div class="container vk-anon">
+		<button type="button" id="btn-login" class="btn btn-success">Войти ВКонтакте</button>
 	</div>
 	
 	<script src="http://yastatic.net/jquery/2.1.4/jquery.min.js"></script>
 	<script src="//vk.com/js/api/openapi.js"></script>
 	<script src="main.js"></script>
 	<script>
-		App.init({appId: });
+		App.init({appId: 5092064 });
 	</script>
 
 </body>
