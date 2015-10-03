@@ -12,10 +12,10 @@
 var App = (function(w,d,$,VK){
 	return {
 		worker: {}
-		,vkScript: ''
+		,vkScript: {}
 		,defaults: {
 			appId:	0
-			,v:		5.35
+			,v:		5.37
 		}
 		,props:	{}
 		,init:	function(opts) {
@@ -26,14 +26,9 @@ var App = (function(w,d,$,VK){
 			
 			this.props = $.extend( {}, this.defaults, opts);
 			
-			// load vk script file
-			$.ajax('vkscript.js', {
-					error		: this.gotVkScriptError.bind(this) 
-					,method		: 'GET'
-					,success	: this.gotVkScript.bind(this)
-					,dataType	: 'html'
-				}
-			);
+			// load vk script files
+			this.loadScript('guess');
+			this.loadScript('getMembers');
 
 			// jQuery objects
 			this.$cUser 	= $('.vk-user');
@@ -57,12 +52,21 @@ var App = (function(w,d,$,VK){
 			VK.Auth.getLoginStatus( this.gotLoginStatus.bind(this));
 		}
 		
-		,gotVkScript: function(data) {
-			this.vkScript = data;
+		,loadScript: function(key) {
+			$.ajax('vkscript/' + key + '.js', {
+					error		: this.gotVkScriptError.bind(this, key) 
+					,success	: this.gotVkScript.bind(this, key)
+					,dataType	: 'html'
+				}
+			);
 		}
 		
-		,gotVkScriptError: function(xhr) {
-			console.log('ERROR Getting vk script', arguments);
+		,gotVkScript: function( key, data) {
+			this.vkScript[key] = data;
+		}
+		
+		,gotVkScriptError: function( key, xhr) {
+			console.log('ERROR Getting vk script: ' + key, arguments);
 		}
 		
 		,ready: function() {
@@ -73,8 +77,8 @@ var App = (function(w,d,$,VK){
 		,gotLoginStatus: function( response) {
 			console.log('got status: ', response);
 			if (response.session) {
-				console.log('user: ' + response.session.mid);
-				this.session = response.session;
+				//console.log('vk user: ' + response.session.mid);
+				this.token = response.session.sid;
 				
 				this.$cUser.removeClass('hidden');
 				this.$cAnon.addClass('hidden');
@@ -95,7 +99,7 @@ var App = (function(w,d,$,VK){
 		
 		,login: function(){
 			console.log("will log in");
-			VK.Auth.login( this.gotLoginStatus.bind(this), 262144);
+			VK.Auth.login( this.gotLoginStatus.bind(this), 0x40000);
 		}
 		
 		,onMessage: function(e) {
@@ -104,7 +108,6 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,onClick: function() {
-			//this.worker.postMessage( {value: this.$input.val(), token: this.session.sid});
 			this.$input.attr("disabled", true);
 			this.guess( this.$input.val());
 			
@@ -129,20 +132,28 @@ var App = (function(w,d,$,VK){
 			VK.Api.call(
 				'execute',
 				{
-					code		: this.vkScript,
+					code		: this.vkScript.guess,
 					oid			: oid,
 					screen_name	: screen_name,
-					v			: 5.35,
+					v			: this.props.v,
 				},
 				this.gotResolvedName.bind(this)
 			);
 		}
 		
 		,gotResolvedName: function(r) {
-			this.$input.removeAttr("disabled");
 			//console.log("Got resolved:", r.response.oid, r);
-			if( r.response.oid) console.log("oid: " , r.response.oid);
-			else console.log('no oid');
+			if( r.response  &&  r.response.oid) {
+				console.log("oid: " , r.response.oid);
+				this.collect( r.response.oid, r.response.mass);
+			} else {
+				this.$input.removeAttr("disabled");
+				console.log('no oid');
+			}
+		}
+		
+		,collect: function( oid, mass) {
+			this.worker.postMessage( {oid: oid, mass: mass, token: this.token, code: this.vkScript.getMembers, v: this.props.v});
 		}
 	};
 })(window, document, jQuery, window.VK);
