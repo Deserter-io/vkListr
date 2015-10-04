@@ -34,5 +34,5 @@ vkListr позволяет скачать список Участников гр
 ## Автор
 
 Сергей Соколов
-[github](https://github.com/sergiks), [ВКонтакте](https://vk.com/serge.sokolov), hello @ sergeisokolov . com
-Москва, 2015.
+<br>[github](https://github.com/sergiks), [ВКонтакте](https://vk.com/serge.sokolov), hello @ sergeisokolov . com
+<br>Москва, 2015.
