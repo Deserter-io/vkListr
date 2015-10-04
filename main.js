@@ -83,7 +83,7 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,gotLoginStatus: function( response) {
-			console.log('got status: ', response);
+			//console.log('got status: ', response);
 			if (response.session) {
 				//console.log('vk user: ' + response.session.mid);
 				this.token = response.session.sid;
@@ -111,12 +111,14 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,onMessage: function(e) {
+			var blob;
+			
 			if( !e.data) {
 				console.log("Message from worker carried no data");
 				return;
 			}
 			
-			if( e.data.progress) this.onProgress(e.data.progress);
+			if( e.data.progress) this.onProgress(e.data.progress, e.data.eta);
 		
 			else if( e.data.ids) {
 				this.ids = e.data.ids;
@@ -125,9 +127,24 @@ var App = (function(w,d,$,VK){
 				this.$progress.addClass('hidden');
 				
 				//csvHead = "data:attachment/csv;charset=utf-8,%EF%BB%BF";
+				
+				
+				blob = new Blob([this.ids.join("\n")], { type:"text/csv"});
+				
+				this.$out.html( 'Получено ' + this.ids.length + ' id. <a href="' 
+					+w.URL.createObjectURL(blob)
+					+ '" download="ids.csv" class="btn btn-success e-download">Скачать</a>' 
+					+' Elapsed: ' + Math.floor(e.data.elapsed/1000) +'s, slept ' +Math.floor(e.data.slept/1000) + 's'	
+				);
+
+
+/*
 				this.$out.html( 'Получено ' + this.ids.length + ' id. <a href="data:attachment/csv;,'
 					+ this.ids.join("%0A")
-					+ '" target="_blank" download="ids.csv" class="btn btn-success e-download">Скачать</a>');
+					+ '" target="_blank" download="ids.csv" class="btn btn-success e-download">Скачать</a>' 
+					+'Elapsed: ' + Math.floor(e.data.elapsed/1000) +'s, slept ' +Math.floor(e.data.slept/1000) + 's'	
+				);
+*/
 			}
 
 			else if( e.data.elapsed) this.$out.html( e.data.elapsed);
@@ -187,11 +204,12 @@ var App = (function(w,d,$,VK){
 		/**
 		 * Updates progress indicator to the provided value in range 0..1
 		 */
-		,onProgress: function(p) {
+		,onProgress: function(p, eta) {
 			var val = Math.floor(100*p), percent = '' + val + '%';
 
 			$('.progress-bar', this.$progress).css('width', percent).attr('aria-valuenow', val);
 			$('.sr-only', this.$progress).html(percent);
+			this.$out.html( eta);
 		}
 	};
 })(window, document, jQuery, window.VK);

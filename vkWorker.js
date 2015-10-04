@@ -1,46 +1,72 @@
 "use strict";
 
 var Worker = {
-	init: function() {
+	setup: function() {
 		self.onmessage = this.onMessage.bind(this);
 		self.callback = this.runLoop.bind(this);
 	}
 	
-	,busy: false
+	,busy		: false
+	,ids		: []
+	,started	: 0
+	,waited		: 0
+	,eta		: 0
 	
-	,ids: []
-	,started: 0
-	,waited: 0
+	,times		: []	// last 3 api call times
+	,samples	: []	// estimates for a total job time
 
 	,onMessage: function(e) {
-		if( !e.data  ||  !e.data.oid  ||  !e.data.token  || !e.data.code) {
-			postMessage({ error: "Missing oid or token"});
+		var mandatory = "oid,mass,token,code,v".split(','), prop;
+
+		if( !e.data) {
+			postMessage({ error: "Missing event data"});
+			throw "Missing event data";
 			return;
 		}
 
-		
+		// verify all properties are in place
+		for( prop=0; prop<mandatory.length; prop++) {
+			if( !e.data.hasOwnProperty( mandatory[prop])) {
+				postMessage({ error: "missing property " + mandatory[prop] });
+				return;
+			}
+		}
+
+
+		// is worker available?
 		if( this.busy) {
 			postMessage({ error: "Worker busy"});
 			return;
 		}
-		
-		console.log('Worker got oid ', e.data.oid);
-		
-		this.busy = true;
-		this.started = (new Date()).getTime();
 
-		this.oid = e.data.oid > 0 ? e.data.oid : -e.data.oid;
-		this.token = e.data.token;
-		this.mass = e.data.mass ? e.data.mass : 0;
-		this.code = encodeURIComponent( e.data.code.replace(/\s+/g,' '));
-		this.v =  e.data.v
 
-		this.offset = 0;
-		
+		this.init( e.data);
 		this.runLoop();
 	}
 	
-	// in case of errors
+	
+	/**
+	 * Reset prior each new group run
+	 */
+	,init: function( props) {
+		this.busy = true;
+
+		this.started = (new Date()).getTime();
+		
+		this.ids	= [];
+		this.waited	= 0;
+
+		this.oid	= props.oid > 0 ? props.oid : -props.oid;
+		this.token	= props.token;
+		this.mass	= props.mass ? props.mass : 0;
+		this.code	= encodeURIComponent( props.code.replace(/\s+/g,' '));
+		this.v		= props.v;
+
+		this.offset	= 0;
+	}
+
+
+	// in case of bad errors
 	,abort: function( msg, r) {
 		console.log( msg, r);
 		postMessage({abort: 1, msg: msg});
@@ -48,8 +74,10 @@ var Worker = {
 		return;
 	}
 	
+	,cbSum: function(sum, val) { return sum + val; }
+	
 	,runLoop: function(r) {
-		var loop, from, lastId, lengthBefore, url, now, diff;
+		var loop, from, lastId, lengthBefore, url, now, diff, progress;
 
 		now = (new Date()).getTime();
 		
@@ -96,7 +124,18 @@ var Worker = {
 				
 				if( r.response.mass) this.mass = r.response.mass;
 				
-				if( this.mass) postMessage({progress: this.offset / this.mass});
+				
+				// Before next api call
+				now = (new Date()).getTime();
+
+				// Progress and ETA
+				if( this.mass) {
+					progress = this.offset / this.mass;
+					this.samples.push( this.mass * ( now - this.started) / this.offset);
+					this.samples = this.samples.slice(-10);
+					
+					postMessage({progress: progress, eta: this.samples.reduce( this.cbSum, 0) / this.samples.length });
+				}
 				
 				if( this.offset >= this.mass) {		// done
 					console.log('Worker done.');
@@ -136,16 +175,7 @@ var Worker = {
 		// do the jsonp VK API call
 		importScripts( url);
 	}
-	
-	,callback2: function (r) {
-		console.log('Got vk response, posting message back to main script', r);
-		postMessage(r);
-	}
-	
-	,times: []
-	
-	
 };
 
-Worker.init();
+Worker.setup();
 
