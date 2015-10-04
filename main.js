@@ -42,8 +42,9 @@ var App = (function(w,d,$,VK){
 			this.$input		= $('#i-groupname');
 			this.$btn		= $('#btn-send');
 			this.$out		= $('#b-out');
-			this.$login		= $('#btn-login');
-			this.$logout	= $('#btn-logout');
+			this.$group		= $('#b-group');
+			this.$login		= $('.m-login');
+			this.$logout	= $('.m-logout');
 			this.$progress	= $('#b-progress');
 
 
@@ -100,13 +101,13 @@ var App = (function(w,d,$,VK){
 			}
 		}
 		
-		,logout: function(){
-			console.log("will log out");
+		,logout: function(e){
+			e.preventDefault();
 			VK.Auth.logout( this.gotLoginStatus.bind(this));
 		}
 		
-		,login: function(){
-			console.log("will log in");
+		,login: function(e){
+			e.preventDefault();
 			VK.Auth.login( this.gotLoginStatus.bind(this), 0x40000);
 		}
 		
@@ -118,16 +119,14 @@ var App = (function(w,d,$,VK){
 				return;
 			}
 			
-			if( e.data.progress) this.onProgress(e.data.progress, e.data.eta);
+			if( e.data.progress) this.onProgress(e.data.progress, e.data.eta, e.data.mass);
 		
 			else if( e.data.ids) {
 				this.ids = e.data.ids;
 				console.log("Received " + this.ids.length + " ids");
 				
 				this.$progress.addClass('hidden');
-				
-				//csvHead = "data:attachment/csv;charset=utf-8,%EF%BB%BF";
-				
+				d.title = 'vkListr: готово';
 				
 				blob = new Blob([this.ids.join("\n")], { type:"text/csv"});
 				
@@ -136,15 +135,6 @@ var App = (function(w,d,$,VK){
 					+ '" download="ids.csv" class="btn btn-success e-download">Скачать</a>' 
 					+' Elapsed: ' + Math.floor(e.data.elapsed/1000) +'s, slept ' +Math.floor(e.data.slept/1000) + 's'	
 				);
-
-
-/*
-				this.$out.html( 'Получено ' + this.ids.length + ' id. <a href="data:attachment/csv;,'
-					+ this.ids.join("%0A")
-					+ '" target="_blank" download="ids.csv" class="btn btn-success e-download">Скачать</a>' 
-					+'Elapsed: ' + Math.floor(e.data.elapsed/1000) +'s, slept ' +Math.floor(e.data.slept/1000) + 's'	
-				);
-*/
 			}
 
 			else if( e.data.elapsed) this.$out.html( e.data.elapsed);
@@ -154,8 +144,6 @@ var App = (function(w,d,$,VK){
 		,onClick: function() {
 			this.$input.attr("disabled", true);
 			this.guess( this.$input.val());
-			
-			//console.log('Message posted to worker');
 		}
 		
 		,terminate: function() {
@@ -186,9 +174,37 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,gotResolvedName: function(r) {
+			var html;
+			
 			//console.log("Got resolved:", r.response.oid, r);
 			if( r.response  &&  r.response.oid) {
-				console.log("oid: " , r.response.oid);
+				console.log("oid: " , r.response.oid, r.response);
+				
+				// display the group
+				html = [
+					'<div class="media">													 ',
+					'   <div class="media-left media-middle">								 ',
+					'   	<a href="%URL%" target="_blank">								 ',
+					'            <img class="media-object" src="%SRC%" alt="">				 ',
+					'   	</a>															 ',
+					'   </div>																 ',
+					'																		 ',
+					'   <div class="media-body">											 ',
+					'   	<h4 class="media-heading">%NAME%</h4>							 ',
+					'   	<p>id: %OID%, <span id="e-mass">%MASS%</span> участников.		 ',
+					'   </div>																 ',
+					'</div>																	 ',
+				]
+					.join("\n")
+					.replace('%URL%', 'https://vk.com/' + r.response.screen_name)
+					.replace('%SRC%', r.response.photo_50)
+					.replace('%NAME%', r.response.name)
+					.replace('%OID%', r.response.oid)
+					.replace('%MASS%', r.response.mass)
+				;
+				this.$group.html(html);
+				
+				
 				this.collect( r.response.oid, r.response.mass);
 			} else {
 				this.$input.removeAttr("disabled");
@@ -204,12 +220,16 @@ var App = (function(w,d,$,VK){
 		/**
 		 * Updates progress indicator to the provided value in range 0..1
 		 */
-		,onProgress: function(p, eta) {
+		,onProgress: function(p, eta, mass) {
 			var val = Math.floor(100*p), percent = '' + val + '%';
+			
+			d.title = 'vkListr: ' + percent;
 
 			$('.progress-bar', this.$progress).css('width', percent).attr('aria-valuenow', val);
 			$('.sr-only', this.$progress).html(percent);
-			this.$out.html( eta);
+			this.$out.html( 'Осталось ' +eta +'с.');
+
+			$('#e-mass').text( mass);
 		}
 	};
 })(window, document, jQuery, window.VK);

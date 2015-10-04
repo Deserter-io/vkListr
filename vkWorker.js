@@ -77,7 +77,7 @@ var Worker = {
 	,cbSum: function(sum, val) { return sum + val; }
 	
 	,runLoop: function(r) {
-		var loop, from, lastId, lengthBefore, url, now, diff, progress;
+		var loop, from, lastId, lengthBefore, url, now, diff, progress, eta;
 
 		now = (new Date()).getTime();
 		
@@ -131,10 +131,20 @@ var Worker = {
 				// Progress and ETA
 				if( this.mass) {
 					progress = this.offset / this.mass;
-					this.samples.push( this.mass * ( now - this.started) / this.offset);
-					this.samples = this.samples.slice(-10);
 					
-					postMessage({progress: progress, eta: this.samples.reduce( this.cbSum, 0) / this.samples.length });
+					if( this.offset) {
+						this.samples.push( this.mass * ( now - this.started) / this.offset);
+						this.samples = this.samples.slice(-5);
+						eta = Math.round(((this.samples.reduce( this.cbSum, 0) / this.samples.length) - now + this.started) / 1000);
+					} else {
+						eta = 0;
+					}
+					
+					postMessage({
+						progress	: progress,
+						eta			: eta,
+						mass		: this.mass,
+					});
 				}
 				
 				if( this.offset >= this.mass) {		// done

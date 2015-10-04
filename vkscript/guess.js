@@ -39,11 +39,10 @@ if( out.oid > 0) {
 	out.data = R[0];
 	out.mass = R[0].counters.friends + R[0].counters.followers;
 	out.name = R[0].first_name +" "+R[0].last_name;
-	out.screen_name = R[0].screen_name;	
 } else {
 	R = API.groups.getById({
-	    "group_ids": -out.oid,
-	    "fields": "members_count",
+	    "group_id": -out.oid,
+	    "fields": "members_count,photo_50",
 	});
 	
 	if( !R  ||  (R.length==0)) {
@@ -58,7 +57,9 @@ if( out.oid > 0) {
 
 	out.mass = R[0].members_count;
 	out.name = R[0].name;
-	out.screen_name = R[0].screen_name;
 	if( R[0].is_closed) out.is_closed = R[0].is_closed;
 }
+out.screen_name = R[0].screen_name;
+out.photo_50 = R[0].photo_50;
+
 return out;
