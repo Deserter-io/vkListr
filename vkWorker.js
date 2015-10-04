@@ -9,6 +9,8 @@ var Worker = {
 	,busy: false
 	
 	,ids: []
+	,started: 0
+	,waited: 0
 
 	,onMessage: function(e) {
 		if( !e.data  ||  !e.data.oid  ||  !e.data.token  || !e.data.code) {
@@ -23,7 +25,9 @@ var Worker = {
 		}
 		
 		console.log('Worker got oid ', e.data.oid);
+		
 		this.busy = true;
+		this.started = (new Date()).getTime();
 
 		this.oid = e.data.oid > 0 ? e.data.oid : -e.data.oid;
 		this.token = e.data.token;
@@ -36,29 +40,48 @@ var Worker = {
 		this.runLoop();
 	}
 	
+	// in case of errors
+	,abort: function( msg, r) {
+		console.log( msg, r);
+		postMessage({abort: 1, msg: msg});
+		self.close();
+		return;
+	}
+	
 	,runLoop: function(r) {
-		var loop, from, lastId, lengthBefore;
-		postMessage({status: "Loop called"});
-		
-		
-		if(r) {
-			console.log("runLoop got", r);
+		var loop, from, lastId, lengthBefore, url, now, diff;
 
-			if( r.execute_errors) {
-				console.log("Execute errors", r.execute_errors);
-				return;
-			}
+		now = (new Date()).getTime();
+		
+		if(r) {	// VK api call returned smth
 			
-			if( r.response) {
+			// respect VK limit of max 3 api calls within 1 second
+			this.times.push(now);
+			this.times = this.times.slice(-3);
+
+			//console.log("runLoop got", r, "offset:"+this.offset, "mass:"+this.mass);
+
+			// check for errors
+			if( r.execute_errors)	return this.abort("Execute errors", r);
+			if( r.error) {
+				if( r.error.error_code == 6) {
+					console.log("Times:", this.times);
+				}
+				return this.abort("Error", r, this.times);
+			}
+
+			if( !r.response) {
+				return this.abort("No response property", r);
+			} else {
 				if( r.response.ids && r.response.ids.length>0) {
 					lengthBefore = this.ids.length;
 					for( loop=0; loop < r.response.ids.length; loop++) {	// max 25
-						if( this.ids.length > 0) {
+						if( this.ids.length) {
 							lastId = this.ids[ this.ids.length - 1];
 							
 							from = r.response.ids[ loop].indexOf( lastId);
 							if( from == -1) {
-								console.log('Last id was not found. Just appending. Might be an hole.');
+								console.log('Last id ' + lastId + ' was not found in loop ', loop, this.ids, r.response.ids[loop]);
 								this.ids = this.ids.concat( r.response.ids[ loop]);
 							} else {
 								this.ids = this.ids.concat( r.response.ids[ loop].slice( from + 1));
@@ -68,37 +91,50 @@ var Worker = {
 						}
 					}
 					
-					//this.offset += this.ids.length - lengthBefore;
-					this.offset = r.response.offset + r.response.ids[ r.response.ids.length - 1].length;
-					console.log("Offset: ", this.offset);
+					this.offset = r.response.next;
 				}
 				
 				if( r.response.mass) this.mass = r.response.mass;
 				
+				if( this.mass) postMessage({progress: this.offset / this.mass});
+				
 				if( this.offset >= this.mass) {		// done
 					console.log('Worker done.');
-					postMessage({ids: this.ids});
+					postMessage({ids: this.ids, elapsed: (new Date()).getTime() - this.started, slept: this.waited});
+					self.close();
 					return;
 				}
-			} else {
-				console.log("Ids not found", r);
-				return;
 			}
 		}
 		
 		// jsonp call to VK API
-		var url = 'https://api.vk.com/method/execute'
+		url = 'https://api.vk.com/method/execute'
 			+'?access_token='	+ this.token 
 			+'&oid='			+ this.oid
 			+'&offset='			+ this.offset
+
+			// TODO overlap must depend on the offset size: min 2, growing up to 10 for a 1E6 offset
 			+'&overlap='		+ 2 // this.offset > 0 ? Math.floor( Math.log( this.offset)) : 0
+
 			+'&mass='			+ this.mass
 			+'&code='			+ this.code
 			+'&v='				+ this.v
 			+'&callback=callback'
 		;
-		importScripts( url);
 		
+		if( this.times.length >= 3) {
+			diff = 1100 - (new Date()).getTime() + this.times[0];
+			if( diff > 0) {
+				diff += 100;	// just in case
+				this.waited += diff;
+				self.setTimeout( this.runLoop.bind(this), diff);	// wait
+				return;
+			}
+		}
+
+
+		// do the jsonp VK API call
+		importScripts( url);
 	}
 	
 	,callback2: function (r) {

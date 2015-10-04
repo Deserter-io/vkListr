@@ -21,17 +21,21 @@ var App = (function(w,d,$,VK){
 		,ids: []
 		,init:	function(opts) {
 			if( !w.Worker) {
-				console.log("No Worker API");
+				alert("Old browser? No Worker API");
+				throw "No Web Worker API";
 				return;
 			}
 			
+			// assign options over defaults
 			this.props = $.extend( {}, this.defaults, opts);
-			
+
+
 			// load vk script files
 			this.loadScript('guess');
 			this.loadScript('getMembers');
 
-			// jQuery objects
+
+			// cache jQuery objects
 			this.$cUser 	= $('.vk-user');
 			this.$cAnon 	= $('.vk-anon');
 
@@ -40,15 +44,18 @@ var App = (function(w,d,$,VK){
 			this.$out		= $('#b-out');
 			this.$login		= $('#btn-login');
 			this.$logout	= $('#btn-logout');
+			this.$progress	= $('#b-progress');
 
 
-			// Events
+			// Events listeners
 			this.$login.on('click', this.login.bind(this));
 			this.$logout.on('click', this.logout.bind(this));
 			
 			this.$btn.on('click', this.onClick.bind(this));
 			this.worker.onmessage = this.onMessage.bind(this);
 
+
+			// VK api init
 			VK.init({ apiId: this.props.appId});
 			VK.Auth.getLoginStatus( this.gotLoginStatus.bind(this));
 		}
@@ -104,14 +111,27 @@ var App = (function(w,d,$,VK){
 		}
 		
 		,onMessage: function(e) {
-			if( e.data  &&  e.data.ids) {
-				this.ids = e.data.ids;
-				console.log("Received " + this.ids.length + " ids");
+			if( !e.data) {
+				console.log("Message from worker carried no data");
 				return;
 			}
 			
-			this.$out.html( e.data);
-			console.log('Message received from worker', e);
+			if( e.data.progress) this.onProgress(e.data.progress);
+		
+			else if( e.data.ids) {
+				this.ids = e.data.ids;
+				console.log("Received " + this.ids.length + " ids");
+				
+				this.$progress.addClass('hidden');
+				
+				//csvHead = "data:attachment/csv;charset=utf-8,%EF%BB%BF";
+				this.$out.html( 'Получено ' + this.ids.length + ' id. <a href="data:attachment/csv;,'
+					+ this.ids.join("%0A")
+					+ '" target="_blank" download="ids.csv" class="btn btn-success e-download">Скачать</a>');
+			}
+
+			else if( e.data.elapsed) this.$out.html( e.data.elapsed);
+			else console.log('Message received from worker', e);
 		}
 		
 		,onClick: function() {
@@ -161,6 +181,17 @@ var App = (function(w,d,$,VK){
 		
 		,collect: function( oid, mass) {
 			this.worker.postMessage( {oid: oid, mass: mass, token: this.token, code: this.vkScript.getMembers, v: this.props.v});
+			this.$progress.removeClass('hidden');
+		}
+		
+		/**
+		 * Updates progress indicator to the provided value in range 0..1
+		 */
+		,onProgress: function(p) {
+			var val = Math.floor(100*p), percent = '' + val + '%';
+
+			$('.progress-bar', this.$progress).css('width', percent).attr('aria-valuenow', val);
+			$('.sr-only', this.$progress).html(percent);
 		}
 	};
 })(window, document, jQuery, window.VK);
