@@ -183,7 +183,7 @@ var Worker = {
 
 
 		// do the jsonp VK API call
-		importScripts( url);
+		setTimeout( function(){ importScripts( url)}, 0);
 	}
 };
 
