@@ -15,7 +15,7 @@ var App = (function(w,d,$,VK){
 		,vkScript: {}
 		,defaults: {
 			appId:	0
-			,v:		5.37
+			,v:		5.131
 		}
 		,props:	{}
 		,ids: []
